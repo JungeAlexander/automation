@@ -1,5 +1,7 @@
 import datetime
+import logging
 from os import environ
+import time
 
 from dotenv import load_dotenv
 import tweepy
@@ -27,19 +29,26 @@ api = tweepy.API(
 )
 
 
-def main(min_favorite_count: int = 3, max_age_days: int = 100):
+def main(min_favorite_count: int = 3, max_age_days: int = 730, debug: bool = False):
     """
     Delete tweets that are:
-    
+
     * favorited by fewer than min_favorite_count
 
     * older than max_age_days
-    
+
     * not favorited by myself
     """
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
     current_date = datetime.datetime.now()
     # Iterate over tweets
+    kept = 0
+    deleted = 0
     for status in tweepy.Cursor(api.user_timeline, screen_name="@" + user_name).items():
+        time.sleep(5)
         id_ = status._json["id"]
         favorite_count = status._json["favorite_count"]
         favorited = status._json["favorited"]
@@ -52,8 +61,14 @@ def main(min_favorite_count: int = 3, max_age_days: int = 100):
             and age_days > max_age_days
             and not favorited
         ):
-            print(id_)
-            # api.destroy_status(id_)
+            logging.debug(f"Delete: {id_}")
+            api.destroy_status(id_)
+            deleted += 1
+        else:
+            logging.debug(f"Keep: {id_}")
+            kept += 1
+    logging.info(f"Kept: {kept}")
+    logging.info(f"Deleted: {deleted}")
 
 
 if __name__ == "__main__":
